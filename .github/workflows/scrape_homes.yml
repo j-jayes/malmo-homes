@@ -2,7 +2,8 @@ name: Run Scrape Script
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # This line sets the action to run daily at midnight UTC. Adjust as needed.
+    # set the cron job to run every 3 hours 
+    - cron: "0 */3 * * *"
   workflow_dispatch:  # This line allows you to manually trigger the workflow from the GitHub web interface.
 
 jobs:
