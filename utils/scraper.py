@@ -143,3 +143,32 @@ def collect_property_links(base_url, min_area, max_area, step):
 
     return property_links
 
+
+def collect_property_links_gh_actions(base_url):
+    session = HTMLSession()
+    property_links = []
+
+    total_pages = 10 # Assume 10 pages for demonstration purposes
+
+    for page in range(1, total_pages + 1):
+        try:
+            url = f"{base_url}&page={page}"
+            r = session.get(url)
+            # r.html.render()  # Uncomment if JavaScript needs to run to load the links
+            
+            # Extract property links
+            links = r.html.find('div[data-testid="result-list"] a.hcl-card')
+            property_links.extend(['https://www.hemnet.se' + link.attrs['href'] for link in links if 'href' in link.attrs])
+            
+            # Optional: Print out the progress
+            print(f"Collected links from page {page}")
+            # sleep for a random time between 1 and 3 seconds
+            time.sleep(random.uniform(1, 3))
+        except Exception as e:
+            print(f"Error collecting links from page {page}. Error: {e}")
+            # Continue to the next page even if the current one fails
+
+
+    return property_links
+
+

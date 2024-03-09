@@ -1,13 +1,14 @@
 from requests_html import HTMLSession
 # from folder called utils and file called scraper-utils.py import the functions get_data and parse_html
-from utils.scraper import get_data, parse_html, collect_property_links
+from utils.scraper import collect_property_links_gh_actions
 from utils.storage import save_to_parquet, load_parquet
 import pandas as pd
 import os
 import logging
-import time
-import random
 
+# this script reads in a list of links already collected and then collects new links
+# the new links are then joined with the old links and duplicates are removed
+# the final list of links is then saved to a parquet file
 def main():
     # Step 1: Collect the links to the properties
     # create a new HTML session
@@ -17,25 +18,33 @@ def main():
 
     # set the params
     base_url = "https://www.hemnet.se/salda/bostader?location_ids%5B%5D=17989"
-    min_area = 20
-    max_area = 250
-    step = 2
 
     # Get the date 
     date = pd.Timestamp.now().strftime("%Y-%m-%d")
 
-    # property links file
-    property_links_file = f"output/hemnet_links_{date}_total.parquet"
+    # existing property links fils
+    property_links_file = f"output/hemnet_links_total.parquet"
 
-    # collect the property links if the file does not exist
-    if not os.path.exists(property_links_file):
-        property_links = collect_property_links(base_url, min_area, max_area, step)
-        df_links = pd.DataFrame(property_links, columns=['url'])
-        save_to_parquet(df_links, property_links_file)
+    property_links = load_parquet(property_links_file)
+    
+    new_property_links = collect_property_links_gh_actions(base_url)
+    df_new_links = pd.DataFrame(new_property_links, columns=['url'])
+
+    # count how many new links were collected that were not in the original list by doing a set difference
+    new_links = set(new_property_links) - set(property_links['url'])
+
+    # log the number of new links collected
+    if len(new_links) > 0:
+        logging.info(f"Collected {len(new_links)} new property links.")
     else:
-        df_links = load_parquet(property_links_file)
+        logging.info(f"No new property links collected.")
 
-    print(f"Collected a total of {len(df_links)} property links.")
+    # join the new links with the old links and remove duplicates
+    df_links = pd.concat([property_links, df_new_links], ignore_index=True).drop_duplicates()
+        
+    save_to_parquet(df_links, property_links_file)
+
+    print(f"There are a total of {len(df_links)} property links.")
     
 if __name__ == "__main__":
     main()
