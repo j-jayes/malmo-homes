@@ -50,7 +50,7 @@ def main():
     if not property_data_cache.empty:
         # Save only the newly added properties
         new_properties = property_data_cache.tail(len(df_links_subset))
-        output_file = f'output/hemnet_properties_{date}.parquet'
+        output_file = f'output/hemnet_properties_{date_time}.parquet'
         save_to_parquet(new_properties, output_file)
         logging.info(f"New property data saved to {output_file}")
 
