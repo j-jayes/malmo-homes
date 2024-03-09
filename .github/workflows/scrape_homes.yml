@@ -1,1 +1,36 @@
-# test
+name: Run Scrape Script
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # This line sets the action to run daily at midnight UTC. Adjust as needed.
+  workflow_dispatch:  # This line allows you to manually trigger the workflow from the GitHub web interface.
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Ensures the entire repo history is checked out
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'  # Adjust Python version as necessary for your project
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run script
+      run: python src/011-scrape-properties-gh-actions.py
+
+    - name: Commit changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git commit -m "Update data from scrape script" -a || echo "No changes to commit"
+        git push
