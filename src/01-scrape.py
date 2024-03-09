@@ -1,81 +1,82 @@
 from requests_html import HTMLSession
-from bs4 import BeautifulSoup
-
-def get_data(s, url):
-    r = s.get(url)
-    print(r)
-    # return the HTML content that can be parsed by BeautifulSoup
-    return r.html.html
-
-def parse_html(html_content):
-    soup = BeautifulSoup(html_content, 'html.parser')
-    data = {}
-
-    # Extract the final price
-    final_price_container = soup.find('div', class_='SaleAttributes_sellingPrice__iFujI')
-    if final_price_container:
-        # Assuming the second span contains the final price
-        final_price = final_price_container.find_all('span', class_='SaleAttributes_sellingPriceText__UZF0W')[1].text
-        final_price = final_price.replace(u'\xa0', u' ')  # Replace non-breaking spaces
-        data['Slutpris'] = final_price
-
-    # Extract the title (h1 tag)
-    title_tag = soup.find('h1', class_='hcl-heading')
-    if title_tag:
-        data['Title'] = title_tag.text.strip()
-
-    # Extract the property type, location and sale date
-    type_location_date_container = soup.find('div', class_='ListingContent_paddedContainer__OC_QR')
-    if type_location_date_container:
-        type_location_date_text = type_location_date_container.find('p', class_='hcl-text').text.strip()
-        type_location_date_parts = type_location_date_text.split(' - ')
-        if len(type_location_date_parts) == 3:
-            data['Type'] = type_location_date_parts[0]
-            data['Location'] = type_location_date_parts[1]
-            data['Sale Date'] = type_location_date_parts[2]
-
-    # Extract the real estate agent information
-    agent_info_container = soup.find('div', id='maklarinfo')
-    if agent_info_container:
-        # Extract the agent's name from the 'a' tag
-        agent_name_tag = agent_info_container.find('a', class_='hcl-link')
-        if agent_name_tag:
-            data['Agent Name'] = agent_name_tag.text.strip()
-
-        # Extract the agent link
-        # the agent link is the href from agent_name_tag
-        agent_link = agent_name_tag.get('href')
-        if agent_link:
-            data['Agent Link'] = agent_link
-
-    # Find the section with the aria-label 'information om bostaden'
-    section = soup.find('section', {'aria-label': 'information om bostaden'})
-
-    # Find all divs with class 'hcl-flex--container hcl-flex--justify-space-between'
-    # This assumes that all the information divs share this class.
-    info_divs = section.find_all('div', class_='hcl-flex--container hcl-flex--justify-space-between')
-
-    for div in info_divs:
-        # Find the 'p' tag for the property name
-        property_name_element = div.find('p', class_='hcl-text')
-        if property_name_element:
-            property_name = property_name_element.get_text(strip=True)
-        
-            # Find the 'strong' tag for the property value
-            property_value_element = div.find('strong', class_='hcl-text')
-            if property_value_element:
-                property_value = property_value_element.get_text(strip=True)
-                property_value = property_value.replace(u'\xa0', u' ')  # Replace non-breaking spaces
-
-                # Add the property name and value to the data dictionary
-                data[property_name] = property_value
-
-    return data
+# from folder called utils and file called scraper-utils.py import the functions get_data and parse_html
+from utils.scraper import get_data, parse_html, collect_property_links
+from utils.storage import save_to_parquet, load_parquet
+import pandas as pd
+import os
+import logging
+import time
+import random
 
 def main():
+    # Step 1: Collect the links to the properties
+    # create a new HTML session
     session = HTMLSession()
-    url = "https://www.hemnet.se/salda/lagenhet-2rum-fagelbacken-malmo-kommun-edward-lindahlsgatan-12f-4025812685731529616"
+    # initiate logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    html_content = get_data(session, url)
-    data = parse_html(html_content)
-    print(data)
+    # set the params
+    base_url = "https://www.hemnet.se/salda/bostader?location_ids%5B%5D=17989"
+    min_area = 60
+    max_area = 65
+    step = 5
+
+    # Get the date 
+    date = pd.Timestamp.now().strftime("%Y-%m-%d")
+
+    # property links file
+    property_links_file = f"output/hemnet_links_{date}.parquet"
+
+    # collect the property links if the file does not exist
+    if not os.path.exists(property_links_file):
+        property_links = collect_property_links(base_url, min_area, max_area, step)
+        df_links = pd.DataFrame(property_links, columns=['url'])
+        save_to_parquet(df_links, property_links_file)
+    else:
+        df_links = load_parquet(property_links_file)
+
+    print(f"Collected a total of {len(df_links)} property links.")
+    
+    # ensure output folder exists
+    os.makedirs('output', exist_ok=True)
+    save_to_parquet(df_links, f'output/hemnet_links_{date}.parquet')
+
+    # Step 2: Collect the data from the property links
+    # Create cache file in the output folder
+    cache_file = f'output/hemnet_properties_cache_{date}.parquet'
+    
+    property_data_cache = load_parquet(cache_file)
+
+    for index, row in df_links.iterrows():
+        try:
+            url = row['url']
+            
+            if not property_data_cache.empty and url in property_data_cache['url'].values:
+                logging.info(f"Skipping already scraped URL: {url}")
+                continue
+
+            r = session.get(url)
+            data = parse_html(r.html.html)
+            # add the url to the data
+            data['url'] = url
+            
+            property_data_cache = pd.concat([property_data_cache, pd.DataFrame([data])], ignore_index=True)
+            # save the cache to the file
+            save_to_parquet(property_data_cache, cache_file)
+            logging.info(f"Data collected for {url}")
+            # sleep for between 5 and 10 seconds
+            time.sleep(5 + 5 * random.random())
+        except Exception as e:
+            logging.error(f"Error collecting data for {url}: {e}")
+
+    # Step 2: Convert the list of dictionaries into a DataFrame
+    df_properties = pd.DataFrame(property_data_cache)
+
+    # Step 3: Save the DataFrame to a Parquet file with the date
+    save_to_parquet(df_properties, f'output/hemnet_properties_{date}_final.parquet')
+    # Write a message to the log
+    logging.info(f"Data saved to output/hemnet_properties_{date}.parquet")
+
+
+if __name__ == "__main__":
+    main()
