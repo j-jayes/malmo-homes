@@ -27,7 +27,7 @@ def main():
         df_links = df_links[~df_links['url'].isin(cached_urls)]
 
     # Select a subset new properties
-    df_links_subset = df_links.head(5)
+    df_links_subset = df_links.head(1000)
     logging.info(f"Selected {len(df_links_subset)} new properties for processing.")
 
     for index, row in df_links_subset.iterrows():
