@@ -38,3 +38,14 @@ df_all = pd.concat(dfs, ignore_index=True)
 
 # save to output folder calling the file "hemnet_properties_cache.parquet"
 df_all.to_parquet("output/hemnet_properties_cache.parquet")
+
+df_links = pd.read_parquet("output/hemnet_links_total.parquet")
+
+# read in the parquet file from "output/hemnet_properties_final.parquet"
+df_final = pd.read_parquet("output/hemnet_properties_cache.parquet")
+
+# drop duplicates from df_final
+df_final = df_final.drop_duplicates()
+
+# count type of properties
+df_final["Type"].value_counts()

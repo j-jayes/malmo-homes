@@ -121,5 +121,63 @@ column_name_translation = {
 # Rename the columns
 data = data.rename(columns=column_name_translation)
 
-data
+# save the cleaned data to a new csv file
+cleaned_file_path = 'temp/hemnet_properties_sample_cleaned.csv'
+data.to_csv(cleaned_file_path, index=False)
 
+
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
+import pandas as pd
+import time
+import json
+
+
+# Load your data
+data = pd.read_csv('temp/hemnet_properties_sample_cleaned.csv')
+
+# Initialize the geocoder with a unique user_agent
+geolocator = Nominatim(user_agent="your_unique_user_agent_here")
+
+# Use RateLimiter to respect the API limits
+geocode = RateLimiter(geolocator.geocode, min_delay_seconds=5, error_wait_seconds=10, max_retries=2, swallow_exceptions=True)
+
+# Initialize a cache dictionary for storing geocoded results
+cache = {}
+
+# Try to load existing cache
+try:
+    with open('temp/address_cache.json', 'r') as cache_file:
+        cache = json.load(cache_file)
+except FileNotFoundError:
+    pass
+
+
+# Create a function to geocode an address with caching
+def geocode_address_with_cache(address):
+    if address in cache:
+        # print "skipping geocoding" and return the cached result
+        print(f"Skipping geocoding for {address}")
+        return cache[address]
+    else:
+        try:
+            location = geocode(f"{address}, Malmö, Sweden")
+            result = (location.latitude, location.longitude) if location else (None, None)
+            cache[address] = result
+            # print the address and the result
+            print(address, result)
+            return result
+        except:
+            return (None, None)
+        
+# test with first 5 addresses
+data = data.head()
+
+# Apply the function to your data
+data['lat_lon'] = data['title'].apply(geocode_address_with_cache)
+
+with open('temp/address_cache.json', 'w') as cache_file:
+    json.dump(cache, cache_file)
+
+# Save the results to a new CSV file
+data.to_csv('temp/geocoded_addresses.csv', index=False)

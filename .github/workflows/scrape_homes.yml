@@ -2,8 +2,8 @@ name: Run Scrape Script for Properties
 
 on:
   schedule:
-    # set the cron job to run every 3 hours 
-    - cron: "0 */3 * * *"
+    # set the cron job to every week on Monday at 00:30
+    - cron: '30 0 * * 1'
   workflow_dispatch:  # This line allows you to manually trigger the workflow from the GitHub web interface.
 
 jobs:
@@ -36,5 +36,5 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add .
-        git commit -m "Update data from scrape script" -a || echo "No changes to commit"
+        git commit -m "Update data from scrape script for properties" -a || echo "No changes to commit"
         git push
