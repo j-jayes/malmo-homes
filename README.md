@@ -27,8 +27,5 @@ I want to make a nice interactive dashboard to investigate what features are imp
 
 ### Components
 
-Scraping: part 1 and continuous
+- [X] Ingest data
 
-Part 1 entails collecting information on completed sales from Hemnet. Have to be sure not to get IP blocked. 
-
-CI is scraping e.g. each week to collect more housing prices to predict on and then retrain.
