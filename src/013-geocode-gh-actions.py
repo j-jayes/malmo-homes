@@ -27,7 +27,7 @@ def geocode_addresses(data_file='data/interim/hemnet_properties_cache.parquet', 
     df_addresses = df_addresses[~df_addresses['title'].isin(cache.keys())]
 
     # Take the first 1000 addresses for processing
-    df_addresses = df_addresses.head(10)
+    df_addresses = df_addresses.head(1000)
 
     # Initialize the geocoder with a unique user_agent
     geolocator = Nominatim(user_agent=user_agent)
