@@ -1,4 +1,4 @@
-name: Run Scrape Script for Links
+name: Run geocoding script
 
 on:
   schedule:
