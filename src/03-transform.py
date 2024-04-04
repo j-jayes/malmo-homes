@@ -170,8 +170,6 @@ def geocode_address_with_cache(address):
         except:
             return (None, None)
         
-# test with first 5 addresses
-data = data.head()
 
 # Apply the function to your data
 data['lat_lon'] = data['title'].apply(geocode_address_with_cache)
@@ -181,3 +179,5 @@ with open('temp/address_cache.json', 'w') as cache_file:
 
 # Save the results to a new CSV file
 data.to_csv('temp/geocoded_addresses.csv', index=False)
+
+# started at 14:18.

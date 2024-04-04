@@ -2,8 +2,8 @@ name: Run Scrape Script for Links
 
 on:
   schedule:
-    # set the cron job to every week on Sunday at 00:00
-    - cron: '0 0 * * 0'
+    # set the cron job to every week on Sunday at 01:00
+    - cron: '0 1 * * 0'
   workflow_dispatch:  # This line allows you to manually trigger the workflow from the GitHub web interface.
 
 jobs:
@@ -29,7 +29,7 @@ jobs:
       run: echo "PYTHONPATH=${{ github.workspace }}" >> $GITHUB_ENV
   
     - name: Run script
-      run: python src/010-scrape-links-gh-actions.py
+      run: python src/013-geocode-gh-actions.py
 
     - name: Commit changes
       run: |

@@ -23,7 +23,7 @@ def main():
     date = pd.Timestamp.now().strftime("%Y-%m-%d")
 
     # existing property links fils
-    property_links_file = f"output/hemnet_links_total.parquet"
+    property_links_file = f"data/interim/hemnet_links.parquet"
 
     property_links = load_parquet(property_links_file)
     

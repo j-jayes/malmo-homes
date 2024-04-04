@@ -12,10 +12,10 @@ def main():
     # Get the date and time
     date_time = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    property_links_file = "output/hemnet_links_total.parquet"
+    property_links_file = "data/interim/hemnet_links.parquet"
     df_links = pd.read_parquet(property_links_file)
 
-    cache_file = 'output/hemnet_properties_cache.parquet'
+    cache_file = 'data/interim/hemnet_properties_cache.parquet'
     try:
         property_data_cache = load_parquet(cache_file)
     except FileNotFoundError:
@@ -50,7 +50,7 @@ def main():
     if not property_data_cache.empty:
         # Save only the newly added properties
         new_properties = property_data_cache.tail(len(df_links_subset))
-        output_file = f'output/hemnet_properties_{date_time}.parquet'
+        output_file = f'data/raw/hemnet_properties_{date_time}.parquet'
         save_to_parquet(new_properties, output_file)
         logging.info(f"New property data saved to {output_file}")
 

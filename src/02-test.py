@@ -3,7 +3,7 @@ from skimpy import skim
 
 
 # read in the parquet file from "output/hemnet_properties_2024-02-23.parquet"
-df = pd.read_parquet("output/hemnet_properties_2024-02-28_final.parquet")
+df = pd.read_parquet("output/hemnet_properties_cache.parquet")
 
 df
 
