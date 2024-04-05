@@ -4,6 +4,7 @@ def geocode_addresses(data_file='data/interim/hemnet_properties_cache.parquet', 
     from geopy.exc import GeocoderTimedOut, GeocoderQuotaExceeded
     import pandas as pd
     import json
+    import re
 
     # Load your data
     data = pd.read_parquet(data_file)
@@ -37,7 +38,9 @@ def geocode_addresses(data_file='data/interim/hemnet_properties_cache.parquet', 
 
     def geocode_address_with_cache(address):
         try:
-            location = geocode(f"{address}, Malmö, Sweden")
+            # prepare the string for geocoding by trimming anything after a comma, a / or a -
+            address_in = re.split('[,/-]', address)[0]
+            location = geocode(f"{address_in}, Malmö, Sweden")
             if location:
                 result = (location.latitude, location.longitude)
                 cache[address] = result
