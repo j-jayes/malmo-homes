@@ -37,11 +37,22 @@ def parse_html(html_content):
     type_location_date_container = soup.find('div', class_='ListingContent_paddedContainer__OC_QR')
     if type_location_date_container:
         type_location_date_text = type_location_date_container.find('p', class_='hcl-text').text.strip()
-        type_location_date_parts = type_location_date_text.split(' - ')
-        if len(type_location_date_parts) == 3:
-            data['Type'] = type_location_date_parts[0]
-            data['Location'] = type_location_date_parts[1]
-            data['Sale Date'] = type_location_date_parts[2]
+
+        # Regular expression to match the pattern
+        # Adjusted to be more flexible with locations including "Malmö kommun" or similar structures
+        pattern = r"^(.*?) - (.*?) - Såld (.*)$"
+        match = re.search(pattern, type_location_date_text)
+
+        if match:
+            data['Type'] = match.group(1)
+            # The location capturing regex assumes "Malmö kommun" or a similar part is not necessarily at the end.
+            # Adjust below if "Malmö kommun" is consistently at the end or needs special handling.
+            data['Location'] = match.group(2)
+            data['Sale Date'] = "Såld " + match.group(3)
+        else:
+            # Fallback or error handling if the expected pattern is not found
+            print("The expected pattern was not found in the text: {}".format(type_location_date_text))
+
 
     # Extract the real estate agent information
     agent_info_container = soup.find('div', id='maklarinfo')

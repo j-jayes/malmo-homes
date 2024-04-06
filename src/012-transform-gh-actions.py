@@ -41,14 +41,29 @@ def clean_and_transform_hemnet_data(input_file_path, output_file_path):
     data['Balkong'] = data['Balkong'].map({'Ja': 1, 'Nej': 0})
     data['Uteplats'] = data['Uteplats'].map({'Ja': 1, 'Nej': 0})
 
+    def elevator_presence(floor_info):
+        floor_info_str = str(floor_info)
+        if 'hiss finns ej' in floor_info_str:
+            return 0
+        elif 'hiss finns' in floor_info_str:
+            return 1
+        else:
+            return None
+
     # Extract floor number and elevator presence
     data['Floor Number'] = data['Våning'].str.extract('(\d+)').astype(float)
-    data['Elevator Presence'] = data['Våning'].apply(lambda x: 1 if 'hiss finns' in str(x) else 0)
+    data['Elevator Presence'] = data['Våning'].apply(elevator_presence)
+    
+    # Correctly extract numerical area values by defining a function for numeric conversion as above
+    def clean_numeric_area(column, unit):
+        if unit == 'm²':
+            return pd.to_numeric(column.str.replace(' m²', '').str.replace(',', '.'), errors='coerce')
+        elif unit == 'kr/år':
+            return pd.to_numeric(column.str.replace(' kr/år', '').str.replace(' ', ''), errors='coerce')
 
-    # Correctly extract numerical area values
-    data['Biarea (m²)'] = data['Biarea'].str.replace(' m²', '').str.replace(',', '.').astype(float)
-    data['Tomtarea (m²)'] = data['Tomtarea'].str.replace(' m²', '').str.replace(',', '.').astype(float)
-    data['Arrende (kr/år)'] = data['Arrende'].str.replace(' kr/år', '').str.replace(' ', '').astype(float)
+    data['Biarea (m²)'] = clean_numeric_area(data['Biarea'], 'm²')
+    data['Tomtarea (m²)'] = clean_numeric_area(data['Tomtarea'], 'm²')
+    data['Arrende (kr/år)'] = clean_numeric_area(data['Arrende'], 'kr/år')
 
     # Translation of column names to English and conversion to snake case
     column_name_translation = {
@@ -83,7 +98,8 @@ def clean_and_transform_hemnet_data(input_file_path, output_file_path):
         'Arrende (kr/år)': 'leasehold_fee_per_year',
         'Bostadstyp': 'type_2',
         'Byggår': 'year_of_construction',
-        'Upplåtelseform': 'release_form'
+        'Upplåtelseform': 'release_form',
+        'Tomträttsavgäld': 'land_right_fee'
     }
 
     # Rename the columns
