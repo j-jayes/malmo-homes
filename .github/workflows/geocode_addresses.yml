@@ -2,8 +2,8 @@ name: Run Geocoding Script
 
 on:
   schedule:
-    # set the cron job to every two hours
-    - cron: '0 */2 * * *'
+    # set the cron job to run every sunday at 01:00
+    - cron: '0 1 * * 0'
   workflow_dispatch:  # This line allows you to manually trigger the workflow from the GitHub web interface.
 
 jobs:
