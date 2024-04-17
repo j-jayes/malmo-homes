@@ -1,0 +1,22 @@
+{
+  "get_ui_name": "Fastighetskartan Kommunikation latest, Property map Transport networks",
+  "data_provider": "Lantmäteriet",
+  "delivered_to_get": "2021-08-09",
+  "data_properties": [
+    {
+      "data_format": "vector",
+      "file_format": "shapefile"
+    }
+  ],
+  "license": "FUK (Forskning, utbildning och kulturverksamhet)",
+  "contact": {
+    "mail": "gis-support@slu.se",
+    "twitter": "https://twitter.com/support_get"
+  },
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:EPSG::3006"
+    }
+  }
+}

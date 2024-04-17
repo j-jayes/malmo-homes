@@ -1,0 +1,205 @@
+---
+title: "Quantifying the impact of remote work on the local labour market in Sweden"
+subtitle: "A description of Swedish property data"
+date: today
+author: Jonathan Jayes
+format: 
+    html:
+        code-fold: true
+execute:
+    eval: true
+    echo: true
+    warning: false  
+    message: false
+
+---
+
+```{r}
+library(tidyverse)
+
+df <- read_csv(here::here("temp/hemnet_properties_for_readme.csv"))
+```
+
+Hello everyone - I hope that you are having fun in Gothenburg! I am sorry that I could not be there to join you - but I am sure that I am having a blast in Oslo at this time.
+
+Kerstin spoke to me briefly about using at modern register data to look at the effect of remote work on location choices in Sweden. For example, we could look at how many people now live further away from the city center, or from where they work, as a result of remote work becoming more prevalent.
+
+It is an elegantly simple idea, and if the data is available, I think would make a neat paper. 
+
+There are a number of additions to this - I feel like looking at the JobTech data on the number of roles advertising remote work in the job description would be beneficial. 
+
+In addition, we could look at property sales in different areas, and see if there is a correlation between the number of remote work roles and property prices.
+
+[Nick Bloom](https://wfhresearch.com/wp-content/uploads/2023/09/Evolution-of-WFH-3-September-2023.pdf) and some colleagues talk about the prevalence of work from home in the US and note that it is still high, even after the pandemic. 
+
+They show that it is highest in areas of high population density:
+
+![Work from home share by population density in the US](../assets/wfh_density.png)
+
+
+They also find that it is higher for individuals
+
+- who live with children below 14 years old
+- have college degrees
+- have graduate degrees (big effect)
+
+## Property sales data
+
+For my own interest, I have a dataset of property sales in Malmö that could be expanded to the whole country for this purpose.^[I am scraping this data because I would like to buy an apartment in Malmö in the future.]
+
+Currently I scrape the records of property sales from Hemnet for Malmö each week and store them in a database on GitHub.
+
+The dataset contains information on the final sale price, property type, location, and other features of the property.
+
+### Advert example
+
+![Advert example](../assets/ad_example.png)
+
+### Basic time series
+
+```{r}
+df %>% 
+filter(type == "Lägenhet") %>%
+ggplot(aes(x = sale_date, y = price_per_square_meter)) +
+geom_point(alpha = .1) +
+geom_smooth(group = 1) +
+scale_y_continuous(labels = scales::dollar_format(prefix = "SEK ")) +
+labs(title = "Price per square meter over time in Malmö",
+     x = "Sale date",
+     y = "Price per square meter")
+```
+
+Which areas have the highest price per square meter, on average?
+
+```{r}
+library(ggridges)
+
+# make a ridge plot showing price_per_square_meter by location
+df %>%
+    mutate(location = fct_lump(location, 10)) %>%
+    # filter(location != "Other") %>%
+    mutate(location = str_remove(location, ", Malmö kommun")) %>%
+    filter(!is.na(location)) %>%
+    mutate(location = fct_reorder(location, price_per_square_meter, .fun = median)) %>%
+    ggplot(aes(x = price_per_square_meter, y = location, fill = location)) +
+    stat_binline(geom = "density_ridges") +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    scale_x_continuous(labels = scales::dollar_format(prefix = "SEK ")) +
+    labs(
+        title = "Price per square meter by location in Malmö",
+        x = "Price per square meter",
+        y = "Location"
+    )
+
+```
+
+## Mapping
+
+We can show the types of properties in Malmö on a map.
+
+You can see all the information about each property by clicking on the marker.
+
+```{r}
+library(mapview)
+library(sf)
+library(RColorBrewer)
+
+
+malmo_bbox = c(left = 12.9, bottom = 55.53, right = 13.1, top = 55.65)
+
+df_filtered <- df %>%
+    filter(between(latitude, 55.53, 55.65), between(longitude, 12.9, 13.1)) %>% 
+    slice_sample(n = 1000)
+
+df_sf <- st_as_sf(df_filtered, coords = c("longitude", "latitude"), crs = 4326)
+```
+
+```{r}
+#| column: page
+
+mapview(df_sf %>% filter(!is.na(type)), zcol = "type")
+```
+
+We can also show the price per square meter on a map.
+
+```{r}
+#| column: page
+
+mapview(df_sf, zcol = "price_per_square_meter", col.regions=brewer.pal(9, "YlOrRd"))
+```
+
+### Data summary
+
+```{r}
+df %>% skimr::skim()
+```
+
+
+## Data dictionary
+
+```{r}
+# Define column names
+colnames <- df %>% colnames()
+
+# Define descriptions (replace with actual descriptions)
+descriptions <- c(
+    "Final sale price (not original asking price)",
+    "Title of advert (property address)",
+    "Property type (e.g. apartment, house)",
+    "Suburb or area",
+    "Date of Sale",
+    "Name of estate agent",
+    "Link to estate agent website",
+    "Price per square meter",
+    "Asking price",
+    "Difference between asking price and final price",
+    "Ownership type (e.g. Äganderätt, Bostadsrätt)",
+    "Number of rooms",
+    "Living area in square meters",
+    "Balcony (1/0/NA)",
+    "Year of building construction",
+    "Avgift (monthly fee)",
+    "Driftskostnad (operating cost)",
+    "Leasehold fee",
+    "Föreningen (housing association)",
+    "Year of sale",
+    "Month of sale",
+    "Day of sale",
+    "Floor number (usually for apartments)",
+    "Number of floors in building",
+    "Elevator (1/0/NA)",
+    "Latitude",
+    "Longitude"
+)
+
+# Create data dictionary
+data_dictionary <- tibble::tibble(
+    Column = colnames,
+    Description = descriptions
+)
+
+# Print data dictionary
+library(gt)
+
+data_dictionary %>% 
+    gt::gt() %>%
+    gt::fmt_number(columns = 1, use_seps = FALSE) %>% 
+    gt::tab_header(
+        title = md("**Data dictionary**"),
+        subtitle = "Description of columns in the dataset")
+```
+
+
+## Descriptive statistics
+
+```{r}
+df %>%
+    count(type, sort = T) %>%
+    gt() %>%
+    tab_header(
+        title = md("**Property type**"),
+        subtitle = "Number of properties by type"
+    ) %>%
+    cols_label(type = "Property type", n = "Number of properties")
+```

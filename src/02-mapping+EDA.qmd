@@ -1,0 +1,280 @@
+---
+title: "Untitled"
+format: html
+---
+
+
+```{r}
+library(tidyverse)
+library(arrow)
+
+# Read the data
+df <- read_parquet("data/processed/hemnet_properties_transformed.parquet")
+
+df <- df %>% distinct()
+
+geodata <- read_parquet("data/geodata/address_cache.parquet")
+
+# rename columns title, latitude, longitude
+geodata <- geodata %>% rename(title = Title, latitude = Lat, longitude = Long)
+
+# join the data so as to keep only the rows that have geodata
+df <- df %>% left_join(geodata, by = c("title"))
+
+df <- df %>%
+    filter(!is.na(latitude))
+
+# filter for type == "Lägenhet"
+df <- df %>%
+    filter(type == "Lägenhet")
+
+df %>%
+    select(-c("title", "type", "agent_name", "agent_link", "price_per_square_meter", "starting_price", "floor", "sale_date", "price_development", "type_2", "url", "outdoor_space", "supplementary_area", "lot_area", "land_right_fee")) %>%
+    write_csv("temp/hemnet_properties.csv")
+
+df %>%
+    select(-c("floor", "type_2", "url", "outdoor_space", "supplementary_area", "lot_area", "land_right_fee")) %>%
+    write_csv("temp/hemnet_properties_for_readme.csv")
+
+
+```
+
+
+
+```{r}
+library(sf)
+library(ggmap)
+# get a base map of Malmo, Sweden
+malmo_bbox = c(left = 12.9, bottom = 55.53, right = 13.1, top = 55.65)
+
+map <- get_stadiamap(malmo_bbox, zoom = 12, maptype = "alidade_smooth")
+
+map %>% ggmap() +
+  geom_point(data = df, aes(x = longitude, y = latitude), color = "red", size = 1)
+```
+
+try with mapview
+
+```{r}
+library(mapview)
+library(RColorBrewer)
+
+
+malmo_bbox = c(left = 12.9, bottom = 55.53, right = 13.1, top = 55.65)
+
+df_filtered <- df %>%
+    filter(between(latitude, 55.53, 55.65), between(longitude, 12.9, 13.1))
+
+df_sf <- st_as_sf(df_filtered, coords = c("longitude", "latitude"), crs = 4326)
+
+
+mapview(df_sf, zcol = "type")
+
+mapview(df_sf, zcol = "price_per_square_meter", col.regions=brewer.pal(9, "YlOrRd"))
+
+```
+
+Read in income data
+
+```{r}
+# This one is similar to the postcodes in shape
+income_shp <- st_read("data/geodata/income/IH1_DeSO_2020_MI_region.shp")
+
+# this one is blocks, but seems a bit more detailed in built up areas
+# income_shp <- st_read("data/geodata/income/SLU_IH1_SwRef_2021_region.shp")
+
+# convert to sf object
+income_sf <- st_as_sf(income_shp)
+
+# show with mapview, and colour by MedianInk
+mapview(income_sf, zcol = "MedianInk", legend = TRUE)
+```
+
+Nice! kinda cool to see.
+
+Read in the education data
+
+```{r}
+education_shp <- st_read("data/geodata/education/A2_Sweref_2021_region.shp")
+
+education_sf <- st_as_sf(education_shp)
+
+mapview(education_sf)
+```
+
+What about the transport data
+
+
+```{r}
+
+# list the shp files in data/geodata/transport
+transport_files <- list.files("data/geodata/transport", pattern = ".shp")
+
+transport_files <- transport_files %>% 
+as_tibble() %>%
+rename(file = value)
+
+# function to plot the transport data
+plot_transport <- function(transport_shp_file) {
+  transport_shp = st_read(paste0("data/geodata/transport/", transport_shp_file))
+  transport_sf <- st_as_sf(transport_shp)
+  mapview(transport_sf)
+}
+
+plot_transport(transport_files$file[2])
+
+
+# so file 1 is train lines
+# so file 2 is train stations
+# so file 4 is all roads
+# so file 5 is cycle paths
+# I have no idea what 6 is?
+plot_transport(transport_files$file[6])
+```
+
+```{r}
+
+df_map <- df %>% 
+mutate(location = fct_lump(location, 10)) %>% 
+# filter(location != "Other") %>% 
+mutate(location = str_remove(location, ", Malmö kommun"))
+
+map %>% ggmap() +
+  geom_point(data = df_map, aes(x = longitude, y = latitude, colour = location), size = 1) +
+  theme(legend.position = "bottom")
+
+```
+
+
+
+
+```{r}
+library(ggridges)
+
+# make a ridge plot showing price_per_square_meter by location
+df_map %>% 
+mutate(location = fct_reorder(location, price_per_square_meter, .fun = median)) %>%
+ggplot(aes(x = price_per_square_meter, y = location, fill = location)) +
+  geom_density_ridges() +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+
+
+```{r}
+df_map %>%
+    mutate(location = fct_reorder(location, price_per_square_meter, .fun = median)) %>%
+    ggplot(aes(x = number_of_rooms, y = location, fill = location)) +
+    geom_density_ridges(stat = "binline") +
+    theme_minimal() +
+    theme(legend.position = "none")
+
+
+df_map %>%
+    mutate(location = fct_reorder(location, price_per_square_meter, .fun = median)) %>%
+    ggplot(aes(x = price_per_square_meter, y = location, fill = location)) +
+    geom_density_ridges(stat = "binline") +
+    theme_minimal() +
+    theme(legend.position = "none")
+```
+
+
+
+```{r}
+# use stat_bin_hex to plot price_per_square_meter by location on a map
+map %>% ggmap() +
+  stat_summary_2d(data = df_map, aes(x = longitude, y = latitude, z = price_per_square_meter, colour = location), bins = 100) +
+  scale_fill_viridis_c() +
+  theme(legend.position = "bottom") +
+  labs(fill = "Price per square meter", colour = "Location")
+```
+
+
+
+
+
+```{r}
+map %>% ggmap() +
+    stat_summary_2d(data = df_map, aes(x = longitude, y = latitude, z = price_per_square_meter, colour = location), bins = 100) +
+    scale_fill_viridis_c() +
+    theme(legend.position = "bottom") +
+    labs(fill = "Price per square meter", colour = "Location")
+```
+
+
+## EDA
+
+```{r}
+library(gt)
+
+df %>%
+    select(where(is.numeric)) %>%
+    colnames() %>% 
+    as_tibble()  %>% 
+    gt() %>% 
+    cols_label(value = "Column name") %>% 
+    tab_header(title = "Numeric columns")
+```
+
+What is the relationship between the final price and the price per square meter?
+
+```{r}
+df %>%
+    ggplot(aes(y = final_price, x = price_per_square_meter)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal()
+```
+
+Final price versus number of rooms with ggridges
+
+```{r}
+library(ggridges)
+df  %>% 
+    ggplot(aes(x = number_of_rooms, y = final_price)) +
+    geom_point() +
+    geom_density_ridges() +
+    theme_minimal()
+```
+
+Do you get a higher price per square meter if you have a higher number of rooms?
+
+```{r}
+df %>% 
+ggplot(aes(x = price_per_square_meter, y = factor(number_of_rooms), fill = factor(number_of_rooms))) +
+  geom_density_ridges() +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+df %>% 
+ggplot(aes(x = price_per_square_meter, y = factor(number_of_rooms), fill = factor(number_of_rooms))) +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+
+Plot the price per square meter by date of sale
+
+```{r}
+df %>%
+    filter(between(number_of_rooms, 1, 5)) %>%
+    ggplot(aes(x = sale_date, y = price_per_square_meter)) +
+    geom_point() +
+    geom_smooth() +
+    facet_wrap(~number_of_rooms) +
+    theme_minimal()
+```
+
+
+
+
+```{r}
+df %>%
+    ggplot(aes(x = sale_date)) +
+    geom_histogram() +
+    theme_minimal()
+```
