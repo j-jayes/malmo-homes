@@ -34,7 +34,7 @@ In addition, we could look at property sales in different areas, and see if ther
 
 They show that it is highest in areas of high population density:
 
-![Work from home share by population density in the US](../assets/wfh_density.png)
+![Work from home share by population density in the US](assets/wfh_density.png)
 
 
 They also find that it is higher for individuals
@@ -49,11 +49,13 @@ For my own interest, I have a dataset of property sales in Malmö that could be 
 
 Currently I scrape the records of property sales from Hemnet for Malmö each week and store them in a database on GitHub.
 
-The dataset contains information on the final sale price, property type, location, and other features of the property.
+The dataset contains information on the final sale price, property type, location, and other features of the property. There are about 45,000 records in the dataset for Malmö.
+
+If we want to use this data, I can expand it to the rest of Sweden. I show what the advert looks like, some basic time series, and a map of the properties in Malmö as well as a data dictionary and a summary of the data.
 
 ### Advert example
 
-![Advert example](../assets/ad_example.png)
+![Advert example](assets/ad_example.png)
 
 ### Basic time series
 
@@ -96,7 +98,7 @@ df %>%
 
 ## Mapping
 
-We can show the types of properties in Malmö on a map.
+We can show the types of properties in Malmö on a map. Here I show a sample of 1,000 properties, as the map becomes cluttered with more points.
 
 You can see all the information about each property by clicking on the marker.
 
@@ -202,4 +204,16 @@ df %>%
         subtitle = "Number of properties by type"
     ) %>%
     cols_label(type = "Property type", n = "Number of properties")
+```
+
+
+```{r}
+df %>%
+    count(ownership_form, sort = T) %>%
+    gt() %>%
+    tab_header(
+        title = md("**Ownership type**"),
+        subtitle = "Number of properties by type"
+    ) %>%
+    cols_label(ownership_form = "Ownership type", n = "Number of properties")
 ```
