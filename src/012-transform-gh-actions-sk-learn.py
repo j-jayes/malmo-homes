@@ -178,4 +178,5 @@ transformed_data = pipeline.fit_transform(data)
 # transformed_data.sample(2500).to_csv("temp/transformed_data_sample.csv", index=False)
 
 # Save the transformed data to a parquet file in "data/processed"
-transformed_data.to_parquet("data/processed/hemnet_properties_transformed.parquet")
+transformed_data.to_parquet(
+    "data/processed/hemnet_properties_transformed.parquet")
