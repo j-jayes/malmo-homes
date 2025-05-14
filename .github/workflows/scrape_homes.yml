@@ -20,6 +20,17 @@ jobs:
         sudo apt-get update
         sudo apt install -y libxml2-dev libxslt-dev
 
+    - name: Install Google Chrome
+      run: |
+        sudo apt update
+        sudo apt install -y google-chrome-stable
+
+    - name: Install ChromeDriver
+      run: |
+        sudo apt install -y chromium-chromedriver
+        sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
+
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:

@@ -23,17 +23,17 @@ import json
 import re
 
 def setup_selenium_driver():
-    """Set up and return a Selenium WebDriver with appropriate options."""
     chrome_options = Options()
-    # chrome_options.add_argument("--headless")  # Uncomment for production
+    chrome_options.add_argument("--headless=new")  # <-- ADD THIS
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920x1080")
-    
-    # Enable performance logging
+    chrome_options.add_argument("--no-sandbox")  # <- Safe in CI
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Prevents crashes on GitHub runners
+
     chrome_options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
-    
-    # Initialize and return driver
+
     return webdriver.Chrome(options=chrome_options)
+
 
 def extract_coordinates_from_selenium(driver, url):
     """Extract coordinates from Google Maps API requests using Selenium."""
