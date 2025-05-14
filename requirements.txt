@@ -94,3 +94,5 @@ wcwidth==0.2.13
 websockets==10.4
 yarl==1.9.4
 zipp==3.17.0
+
+selenium
