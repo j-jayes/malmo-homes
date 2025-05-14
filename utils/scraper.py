@@ -1,4 +1,3 @@
-
 import requests
 from bs4 import BeautifulSoup
 from requests_html import HTMLSession
@@ -6,6 +5,7 @@ from math import ceil
 import re
 import random
 import time
+import json
 
 
 # function to get the HTML content from a page
@@ -15,8 +15,20 @@ def get_data(s, url):
     # return the HTML content that can be parsed by BeautifulSoup
     return r.html.html
 
+# function to extract coordinates from the Google Maps API request
+def extract_coordinates_from_request(request_body):
+    # Pattern to match the coordinates in the format [null,null,55.703228,13.1851492]
+    coord_pattern = r'\[null,null,(\d+\.\d+),(\d+\.\d+)\]'
+    match = re.search(coord_pattern, request_body)
+    
+    if match:
+        lat = match.group(1)
+        lng = match.group(2)
+        return (float(lat), float(lng))
+    return None
+
 # function to parse the HTML content of a partcular property
-def parse_html(html_content):
+def parse_html(html_content, session=None, url=None):
     soup = BeautifulSoup(html_content, 'html.parser')
     data = {}
 
@@ -72,27 +84,69 @@ def parse_html(html_content):
 
     # Find all divs with class 'hcl-flex--container hcl-flex--justify-space-between'
     # This assumes that all the information divs share this class.
-    info_divs = section.find_all('div', class_='hcl-flex--container hcl-flex--justify-space-between')
+    if section:
+        info_divs = section.find_all('div', class_='hcl-flex--container hcl-flex--justify-space-between')
 
-    for div in info_divs:
-        # Find the 'p' tag for the property name
-        property_name_element = div.find('p', class_='hcl-text')
-        if property_name_element:
-            property_name = property_name_element.get_text(strip=True)
-        
-            # Find the 'strong' tag for the property value
-            property_value_element = div.find('strong', class_='hcl-text')
-            if property_value_element:
-                property_value = property_value_element.get_text(strip=True)
-                property_value = property_value.replace(u'\xa0', u' ')  # Replace non-breaking spaces
+        for div in info_divs:
+            # Find the 'p' tag for the property name
+            property_name_element = div.find('p', class_='hcl-text')
+            if property_name_element:
+                property_name = property_name_element.get_text(strip=True)
+            
+                # Find the 'strong' tag for the property value
+                property_value_element = div.find('strong', class_='hcl-text')
+                if property_value_element:
+                    property_value = property_value_element.get_text(strip=True)
+                    property_value = property_value.replace(u'\xa0', u' ')  # Replace non-breaking spaces
 
-                # Add the property name and value to the data dictionary
-                data[property_name] = property_value
+                    # Add the property name and value to the data dictionary
+                    data[property_name] = property_value
+
+    # Extract coordinates if session is provided (for when we need to intercept API requests)
+    if session and url:
+        try:
+            # Navigate to the property page with the session to capture requests
+            session.get(url)
+            
+            # Enable performance logging in the session
+            logs = session.get_log("performance") if hasattr(session, "get_log") else []
+            
+            # Process logs to find the Maps API request
+            coordinates = None
+            for entry in logs:
+                try:
+                    log = json.loads(entry["message"])
+                    if "message" not in log or "params" not in log["message"]:
+                        continue
+                        
+                    params = log["message"]["params"]
+                    
+                    # Check for request will be sent
+                    if log["message"]["method"] == "Network.requestWillBeSent":
+                        if "request" not in params:
+                            continue
+                            
+                        request = params["request"]
+                        if "SingleImageSearch" in request.get("url", ""):
+                            if "postData" in request:
+                                coords = extract_coordinates_from_request(request["postData"])
+                                if coords:
+                                    coordinates = coords
+                                    break
+                                    
+                except Exception as e:
+                    print(f"Error processing log entry: {e}")
+            
+            if coordinates:
+                data['Latitude'] = coordinates[0]
+                data['Longitude'] = coordinates[1]
+        except Exception as e:
+            print(f"Error extracting coordinates: {e}")
 
     return data
 
 
-# function to get the property links
+# function to get the total pages
 def get_total_pages(session, base_url, min_area, max_area):
     url = f"{base_url}&living_area_min={min_area}&living_area_max={max_area}"
     try:
@@ -181,5 +235,3 @@ def collect_property_links_gh_actions(base_url):
 
 
     return property_links
-
-

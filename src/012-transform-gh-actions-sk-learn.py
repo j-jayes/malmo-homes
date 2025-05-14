@@ -174,9 +174,6 @@ data = pd.read_parquet("data/interim/hemnet_properties_cache.parquet")
 # Apply the pipeline to the data
 transformed_data = pipeline.fit_transform(data)
 
-# save a sample of 2500 rows of the transformed data to a new csv file at "temp/transformed_data_sample.csv"
-# transformed_data.sample(2500).to_csv("temp/transformed_data_sample.csv", index=False)
-
 # Save the transformed data to a parquet file in "data/processed"
 transformed_data.to_parquet(
     "data/processed/hemnet_properties_transformed.parquet")
